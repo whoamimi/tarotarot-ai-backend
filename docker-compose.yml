@@ -1,0 +1,74 @@
+services:
+  taro_app:
+    build:
+      # https://www.docker.com/blog/llm-docker-for-local-and-hugging-face-hosting/
+      dockerfile_inline: |
+        FROM python:3.12-slim
+
+        RUN useradd -m -u 1000 user
+        RUN chsh -s /bin/bash user
+        RUN apt-get update && apt-get install -y curl \
+            python3.11-venv \
+            ca-certificates bash && \
+            rm -rf /var/lib/apt/lists/*
+
+        RUN python3 -m venv /code/venv
+        ENV PATH="/code/venv/bin:$PATH"
+        ENV PYTHONPATH=/code
+        RUN chown -R user:user /code /code/venv
+
+        COPY /taro/requirements.txt .
+        RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+        COPY /taro /code
+        RUN echo "source /code/venv/bin/activate" >> /home/user/.bashrc
+
+        WORKDIR /code
+        User user
+
+        CMD ["/bin/bash", "-c", "source /code/venv/bin/activate && uvicorn taro.app:app --host 0.0.0.0 --port 8000 --reload"]
+    container_name: taro_app
+    depends_on:
+      - ollama
+    env_file:
+      - ./taro/.env
+    ports:
+      - 8000:8000
+    expose:
+      - 8000
+    environment:
+      - PORT=8000
+      - OLLAMA_BASE_URL=http://minis_ollama:11434
+      - OLLAMA_HOST_URL=http://minis_ollama:11434
+    networks:
+      - minis-network
+    volumes:
+      - ollama-data:/code/ollama_root
+
+  ollama:
+    build:
+      dockerfile_inline: |
+        FROM ollama/ollama:latest
+        WORKDIR /root
+        COPY ./ollama_root /root
+        RUN chmod +x /root/start_ollama.sh
+    entrypoint: ["/usr/bin/bash", "./start_ollama.sh"]
+    container_name: minis_ollama
+    ports:
+      - 11434:11434
+    expose:
+      - 11434
+    volumes:
+      - ./ollama_root:/root/.ollama
+      - ollama-data:/root/.ollama
+    pull_policy: always
+    tty: true
+    networks:
+      - minis-network
+    restart: unless-stopped
+
+volumes:
+  ollama-data:
+
+networks:
+  minis-network:
+    driver: bridge

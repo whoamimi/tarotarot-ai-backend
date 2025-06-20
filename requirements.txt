@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pytest
+pytest-asyncio
+httpx
+ollama
+# python-dotenv
+supabase
+pydantic-settings
