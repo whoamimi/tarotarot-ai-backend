@@ -30,7 +30,7 @@ services:
     depends_on:
       - ollama
     env_file:
-      - ./taro/.env
+      - ./.env
     ports:
       - 8000:8000
     expose:

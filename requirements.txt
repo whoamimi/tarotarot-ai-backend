@@ -7,3 +7,8 @@ ollama
 # python-dotenv
 supabase
 pydantic-settings
+pytest-asyncio
+
+# tarot-specific
+immanuel
+geopy

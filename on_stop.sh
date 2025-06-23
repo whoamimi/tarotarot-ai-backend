@@ -1,11 +1,9 @@
 #!/bin/bash
 
-# This script runs every time your Studio sleeps, from your home directory.
+# This script runs every time you are reseting / redeploying the services
+# e.g. server is being restarted, deploying new container, rotating secrets, updating models, back up logs, notify admin, dump metrics etc ~ cp logs/ app-logs/backup-"$(date +%F_%T)".log
 
-# Add your shutdown commands below.
-#
-# Example: docker down my-container
-# Example: sudo service mysql stop
+echo "[!] Stopping services..."
 
 docker-compose -p tarohub down
 
