@@ -111,11 +111,9 @@ class UnavailableAction(WoodPecker):
         super().__init__(f'Unable to locate Taro\'s action, {action_label}.', status_code=500)
 
 class InvalidTarotInsightsCalculation(WoodPecker):
-    def __init__(self, insight_type: str, count: int):
-        self.insight_type = insight_type
-        self.count = count
+    def __init__(self, expected_count: int, insight_type: str, count: int):
         message = (
             f"Invalid tarot insight calculation for '{insight_type}'. "
-            f"Num cards provided: {count}. This may indicate a misconfigured or logically impossible card count."
+            f"Num cards provided: {count} which doesn't match with the total drawn cards: {expected_count}. This may indicate a misconfigured or logically impossible card count."
         )
         super().__init__(message, status_code=422)

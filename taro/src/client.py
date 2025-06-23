@@ -35,19 +35,3 @@ def setup_client(host_url: str = "http://localhost:11434"):
     if N > 0 and LLM_MODEL_ID in tuple(m.model for m in client.list().models):
         return client
     raise BadOllamaSetup
-
-# [TODO] drop this function
-def send_prompt(client: ollama.Client, messages: list[dict], options: ollama._types.Options = OPTIONS): # type: ignore
-    """Load Ollama for chatting based on system/user prompt."""
-
-    output = client.chat(model=LLM_MODEL_ID, messages=messages, stream=False, options=options)
-
-    #if not isinstance(output, (ollama.GenerateResponse, ollama.ChatResponse)):
-    #    raise RuntimeError(f"Unexpected response type from Ollama: {type(output)}")
-
-    # return output.message or `output.message['content']` if you want just the reply text
-
-    logger.info(f'Response from Ollama Client: {output}')
-    return output.message['content']
-
-# print(OPTIONS.num_ctx)

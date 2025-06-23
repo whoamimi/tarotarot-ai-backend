@@ -2,8 +2,7 @@ import pytest
 from types import SimpleNamespace
 
 import src.model_chain as mc
-from src.model_client import OPTIONS as DEFAULT_OPTIONS
-from utils.woodpecker import ErrorSettingUpModelChain
+from src.client import OPTIONS as DEFAULT_OPTIONS
 
 class DummyTask:
     """ A dummy TaroAction-like object with a label and an action_prompt method. """

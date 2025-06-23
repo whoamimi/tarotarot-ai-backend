@@ -5,15 +5,15 @@
 import os
 from typing import Optional
 from dotenv import load_dotenv
+from supabase import create_client
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse
-from fastapi import FastAPI, Depends, BackgroundTasks
+from fastapi import Body, FastAPI, BackgroundTasks
 
-from src.data_models import TarotInsights, User
-from src.schemas import TaroPostRequest, TaroRequest, TaroResponse, UserFeedback, StatsRequest
-from src.agent_state import TaroState
-from src.helper import DisplayName, IncommingDate, IncommingTimestamp
-from utils.woodpecker import DBConnectionError, InactiveTaro, StartUpCrash, InvalidTarotMode, setup_logger
+from src.client import setup_client
+from src.schemas import StatsRequest, TarotInsights, TarotReading, User
+from src.model_chain import CombinationAnalyst, NumerologyAnalyst
+from utils.woodpecker import DBConnectionError, StartUpCrash, setup_logger
 
 load_dotenv()
 logger = setup_logger(__name__)
@@ -21,6 +21,9 @@ logger = setup_logger(__name__)
 SUPABASE_URL = os.getenv("SUPABASE_URL", None)
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", None)
 DEBUG_MODE = os.getenv("DEBUG_MODE", False)
+DB_USERS = "users"
+DB_SESSION = "session"
+DB_MODEL_DUMP = "raw_model_data"
 
 logger.info("Complete loading environment labels")
 
@@ -30,9 +33,11 @@ async def startup(app: FastAPI):
     try:
         if not SUPABASE_URL or not SUPABASE_KEY:
             raise DBConnectionError
+
         if not hasattr(app.state, "agent"):
-            app.state.agent = TaroState(SUPABASE_URL, SUPABASE_KEY)
-            logger.info(f"Setting up apps state: {app.state.__dict__}")
+            app.state.db_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+            client = setup_client()
+            logger.info(f"Setting up apps state: {app.state.__dict__}\nOllama Connection Available: {client}")
         yield
         #if app.state:
         #    app.state.__dict__.pop("agent", None)
@@ -58,27 +63,6 @@ app = FastAPI(
     }
 )
 
-async def render_user_input(
-    inputs: TaroRequest
-):
-    """ Entry point for users inputs for invoking Taro's actions or prompts. """
-    # Checks if state has been loaded
-    if not app.state.agent:
-        logger.error(f"{type(InactiveTaro).__name__}: {InactiveTaro().message}", exc_info=True)
-        raise InactiveTaro
-
-    # Checks if the Tarot reading mode requested is available.
-    if mode := app.state.agent.modes.get(inputs.reading_mode, None):
-        logger.info(f"User input request for reading mode: {mode}")
-        return TaroPostRequest(
-            question=inputs.question,
-            cards=inputs.cards,
-            **mode.dict()
-        )
-
-    logger.error(f"{type(InvalidTarotMode).__name__}: {InvalidTarotMode(inputs.reading_mode)}", exc_info=True)
-    raise InvalidTarotMode(inputs.reading_mode)
-
 @app.get('/')
 def root():
     return JSONResponse(content=f"Taro Active. Debug mode: {DEBUG_MODE}", status_code=200)
@@ -90,31 +74,80 @@ def root():
     response_model=User,  # if you want automatic output validation
 )
 async def user_astrology(
-    user: User
+    user: User = Body(
+        ...,
+        example={
+            "id": "12345",
+            "username": "whoamimi",
+            "first_name": "john",
+            "last_name": "snow",
+            "birth_date": "20-02-1994",
+            "birth_time": "03:15",
+            "birth_place": "Australia/Sydney",
+            "gender": "male"
+        }
+    )
 ):
     logger.info(f'User posted: \n{user.first_name}\nInfo:\n{user.birth_date}\n{user.birth_time}\n{user.birth_place}')
     user.get_astrology()
     return JSONResponse(content=user.model_dump(), status_code=200)
 
-@app.post('/insight_combination/')
+@app.post(
+    '/insight_combination/',
+    response_class=JSONResponse,
+    response_model_exclude_none=True,
+)
 async def tarot_insight_combination(
-    timestamp: str,
-    reading_mode: str,
-    question: str,
-    drawn_cards: list[str]
+    background_tasks: BackgroundTasks,
+    inputs: TarotReading = Body(
+        ...,
+        example={
+            "timestamp": "2025-06-22T02:30:00",
+            "question": "What does my reading reveal about my life path?",
+            "reading_mode": {"position": "present", "draw_num": 3},
+            "drawn_cards": [
+                "Ace of Cups",
+                "Three of Wands",
+                "Ten of Swords"
+            ]
+        }
+    )
 ):
-    return JSONResponse(content="This is currently trialing and in Beta Mode. Try again later :)", status_code=200)
+    try:
+        comb = CombinationAnalyst()
+        response = comb.run(inputs=inputs)
+        return JSONResponse(content=response, status_code=200)
+    except Exception as e:
+        logger.error(f"❌ Error in combination insight: {e}", exc_info=True)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
-
-@app.post('/insight_numerology/')
+@app.post(
+    '/insight_numerology/',
+    response_class=JSONResponse,
+    response_model_exclude_none=True,
+)
 async def tarot_insight_numerology(
-    timestamp: str,
-    reading_mode: str,
-    question: str,
-    drawn_cards: list[str]
+    inputs: TarotReading = Body(
+        ...,
+        example={
+            "timestamp": "2025-06-22T02:30:00",
+            "question": "What does my reading reveal about my life path?",
+            "reading_mode": {"position": "present", "draw_num": 3},
+            "drawn_cards": [
+                "Ace of Cups",
+                "Three of Wands",
+                "Ten of Swords"
+            ]
+        }
+    )
 ):
-    return JSONResponse(content="This is currently trialing and in Beta Mode. Try again later :)", status_code=200)
-
+    try:
+        num = NumerologyAnalyst()
+        response = num.run(inputs=inputs)
+        return JSONResponse(content=response, status_code=200)
+    except Exception as e:
+        logger.error(f"❌ Error in combination insight: {e}", exc_info=True)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.post(
     "/insight_stats/",
@@ -123,79 +156,25 @@ async def tarot_insight_numerology(
     response_model=TarotInsights,  # if you want automatic output validation
 )
 async def tarot_insight_stats(
-    req: StatsRequest = Body(
+    inputs: StatsRequest = Body(
         ...,
         example={
-            "reading_mode": " Celtic Cross ",
+            "reading_mode": "three_card",
             "drawn_cards": ["ace of wands", " nine of cups ", "two of swords"]
         }
     )
 ):
-    n = len(req.drawn_cards)
-    insights = TarotInsights.insight(n, req.drawn_cards)
+    logger.info(f"Tarot Insights Requested:\n{inputs.reading_mode}\n")
+    insights = TarotInsights.insight(inputs.reading_mode.drawn_num, inputs.drawn_cards) # type: ignore
     return JSONResponse(content=insights.model_dump(), status_code=200)
-
-@app.post('/insight_history/')
-async def tarot_insight_history(
-    timestamp: str | None,
-    reading_mode: str | None,
-    question: str | None,
-    drawn_cards: list[str] | None
-):
-    return JSONResponse(content="This is currently trialing and in Beta Mode. Try again later :)", status_code=200)
-
-@app.post('/prediction/')
-async def tarot_reading(
-    background_tasks: BackgroundTasks,
-    user: UserProfile,
-    inputs: TaroPostRequest = Depends(render_user_input),
-    feedback: Optional[UserFeedback] = None
-):
-
-    logger.info(f"Taros Prediction Function received: {inputs}")
-
-    try:
-        user_input = {
-            "question": inputs.question,
-            "tarot_draw_input": inputs.pos_draw
-        }
-
-        messages = app.state.agent.action("pred_combination", **user_input)
-
-        logger.info(f"Inserted Messages: {messages}")
-
-        if feedback and any([
-            feedback.more_creative,
-            feedback.upvote,
-            feedback.downvote,
-            feedback.favorite
-        ]):
-            last_decoder_states = app.state.agent.get_last_decoder_states_with_update(feedback, user.username, user.first_name, user.last_name)
-        else:
-            last_decoder_states = app.state.agent.get_last_decoder_states(user.username, user.first_name, user.last_name)
-
-        response = send_prompt(app.state.agent.client, messages, last_decoder_states)
-
-        output = TaroResponse(
-            feedback=feedback,
-            response=response,
-            inputs=inputs
-        ) # type: ignore
-
-        background_tasks.add_task(app.state.agent.add_session, output)
-
-        return JSONResponse(content=response.model_dump(mode="json"), status_code=200)
-
-    except Exception as e:
-        return JSONResponse(content=str(e.__traceback__), status_code=500)
 
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "taro.app:app",              # module:app_instance
+        "app:app",              # module:app_instance
         host="127.0.0.1",       # only accessible locally
         port=8005,
         reload=True,            # auto-reload on file change (dev only)
-        log_level="trace",      # very verbose logs (dev only)
+        log_level="debug",      # very verbose logs (dev only)
     )

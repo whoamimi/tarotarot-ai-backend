@@ -6,7 +6,9 @@ Defines the associated mini LLM agents / helpers for Taro.
 
 from abc import abstractmethod, ABC
 
-from src.model_client import setup_client, LLM_MODEL_ID, OPTIONS
+from src.schemas import TarotReading
+from src.client import setup_client, LLM_MODEL_ID, OPTIONS
+
 from utils.handler import TaroAction, TaroProfile
 from utils.woodpecker import ErrorSettingUpModelChain, setup_logger
 
@@ -21,30 +23,36 @@ class SandCrawler(ABC):
         self._decode_options = OPTIONS.copy()
 
     @abstractmethod
-    def feature_augment(self, *args, **kwargs) -> dict:
+    def feature_augment(self, **kwargs) -> dict | None:
         """Subclasses must implement this to preprocess or validate input. Must return dict type. """
         pass
 
-    def process(self, **kwargs) -> list[dict[str, str]]:
-        """To run / invoke this mini helping agent."""
-
-        inputs = self.feature_augment(**kwargs)
-        message = list(self.task.action_prompt(**inputs))
-        return message
-
-    def run(self, **kwargs) -> str:
+    def run(self, **kwargs) -> str: # type: ignore
         """Main entrypoint to run the data pipeline and return model output."""
-        message = self.process(**kwargs)
-        client = setup_client()
-        output = client.chat(
-            model=LLM_MODEL_ID,
-            messages=message,
-            stream=False,
-            options=self._decode_options
-        )
 
-        logger.info(f"Ollama Output Returned: {output.message['content']}")
-        return output.message.get('content', None)
+        if 'inputs' not in kwargs:
+            raise ValueError(f'Expected `inputs` to be one of the passing keys of kwargs but received: {kwargs}')
+
+        if inputs := self.feature_augment(**kwargs):
+            logger.info(f"Formating prompts before inserting to model: {inputs}")
+
+            message = list(self.task.prepare_prompt(**inputs))
+            logger.info(f"Done! Getting ready to invoke LLM with:\n {message}")
+
+            # Fetch Client and validate connection / ollana active
+            client = setup_client()
+
+            # Client output
+            output = client.chat(
+                model=LLM_MODEL_ID,
+                messages=message,
+                stream=False,
+                options=self._decode_options
+            )
+
+            logger.info(f"Ollama Output Returned: {output.message['content']}")
+
+            return output.message.get('content', None)
 
     @property
     def decode_kwargs(self):
@@ -63,23 +71,52 @@ class SandCrawler(ABC):
         else:
             raise TypeError("decode_kwargs must be set with a dictionary.")
 
-    def __init_subclass__(cls, task: TaroAction | str, **kwargs):
+    def __init_subclass__(cls, task: TaroAction | str | None, **kwargs):
         super().__init_subclass__(**kwargs)
-        if isinstance(task, str):
+        if isinstance(task, str) or not task:
             raise ErrorSettingUpModelChain(task)
 
         cls.task = task
         SandCrawler.registry[cls.__qualname__] = cls
         logger.info(f"Succesfully registered new Jawa member, {cls.__qualname__}(id: {cls.task.label if isinstance(cls.task, TaroAction) else ''})to our SandCrawler!", exc_info=True)
 
-class CombinationAnalyst(SandCrawler, task=taro.get_jawa('insight_combination')):
-    def feature_augment(self, *args, **kwargs):
+class CombinationAnalyst(SandCrawler, task=taro.templates.get('insight_combination', None)):
+    def feature_augment(self, **kwargs):
+        if inputs := kwargs.get('inputs', None):
+            if isinstance(inputs, TarotReading):
+                return {
+                    'question': inputs.question,
+                    'tarot_draw_input': inputs.drawn_cards
+                }
+        else:
+            raise ValueError
+
+class NumerologyAnalyst(SandCrawler, task=taro.templates.get('insight_numerology', None)):
+    def feature_augment(self, **kwargs):
+        """ Reads the tarots inputs"""
+        if inputs := kwargs.get('inputs', None):
+            if isinstance(inputs, TarotReading):
+                return {
+                    'question': inputs.question,
+                    'tarot_draw_input': inputs.drawn_cards
+                }
+        else:
+            raise ValueError
+
+class StoryTell(SandCrawler, task=taro.templates.get('story_tell', None)):
+    def feature_augment(self, **kwargs):
         return kwargs
 
-class NumerologyAnalyst(SandCrawler, task=taro.get_jawa('insight_numerology')):
-    def feature_augment(self, *args, **kwargs):
-        return kwargs
+if __name__ == "__main__":
+    from datetime import datetime
 
-class InsightHistory(SandCrawler, task=taro.get_jawa('story_tell')):
-    def feature_augment(self, *args, **kwargs):
-        return kwargs
+    sample_tarot = TarotReading(
+        timestamp=str(datetime.now().date()),
+        question='When will I see pookie?',
+        reading_mode='three_card', # type: ignore
+        drawn_cards=['Ace of Wands', 'Wheel of fortune', 'Death (Reversed)']
+    )
+
+    comb = CombinationAnalyst()
+    output = comb.run(inputs=sample_tarot)
+    print(output)

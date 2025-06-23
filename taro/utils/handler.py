@@ -1,14 +1,58 @@
 """
-src/utils.py
+utils/handler.py
+
+
+Data processors to augment and transform certain fields of the dataset before / after storing and retrieval.
+
+BeforeValidator – Preprocessing input values: Use this when you want to clean or coerce the input before Pydantic validates or parses it.
+AfterValidator – Post-processing or fixing values: when you want to modify or validate a value after its been parsed
 """
 
-import yaml
-from pathlib import Path
-from dataclasses import dataclass
 
-from utils.woodpecker import UnavailableAction, setup_logger, InvalidModelInputs, LoadedProfileError
+from collections import namedtuple
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Annotated
+
+from geopy.geocoders import Nominatim
+from pydantic.functional_validators import BeforeValidator
+import yaml
+
+from utils.woodpecker import (
+    InvalidModelInputs,
+    InvalidTarotMode,
+    LoadedProfileError,
+    setup_logger,
+)
 
 logger = setup_logger(__name__)
+
+ACTION_PROMPT_V1 = """{action_prompt}
+
+Please ensure that your response align with given response format below:
+
+### Response Format
+{response_format}
+
+### Example User Input
+{example_input}
+### Example Response
+{example_output}
+"""
+
+ACTION_PROMPT_V2 = """{action_prompt}
+
+Please ensure that your response align with given response format below:
+
+### Example User Input
+{example_input}
+### Example Response
+{example_output}
+"""
+
+DEFAULT_DATE_FORMAT = "%d-%m-%Y"
+DEFAULT_TIME_FORMAT = "%H:%M"
 
 # [TODO] RECREATE THE TAROT READING MODE INFO CARDS
 TAROT_READING_MODE = {
@@ -77,29 +121,53 @@ TAROT_READING_MODE = {
     }
 }
 
-ACTION_PROMPT_V1 = """{action_prompt}
+ReadingModeParser = namedtuple('ReadingModeParser', ['position', 'drawn_num'])
 
-Please ensure that your response align with given response format below:
+def parse_datetime(input_date: str | datetime) -> datetime | None:
+    if isinstance(input_date, str):
+        return datetime.strptime(input_date, DEFAULT_DATE_FORMAT)
+    elif isinstance(input_date, datetime):
+        return input_date
 
-### Response Format
-{response_format}
 
-### Example User Input
-{example_input}
-### Example Response
-{example_output}
-"""
+def parse_timestamp(input_time: str | datetime) -> datetime | None:
+    if isinstance(input_time, str):
+        return datetime.strptime(input_time, DEFAULT_TIME_FORMAT) # type: ignore
+    elif isinstance(input_time, datetime):
+        return input_time
 
-ACTION_PROMPT_V2 = """{action_prompt}
+def get_lat_lon(place: str):
+    """ Gets Latitude and Longitude"""
+    geolocator = Nominatim(user_agent="astro-app")
+    location = geolocator.geocode(place)
+    if location:
+        return location.latitude, location.longitude # type: ignore
+    else:
+        raise ValueError(f"Could not geocode location: {place}")
 
-Please ensure that your response align with given response format below:
+def fetch_reading_mode(reading_mode: str) -> ReadingModeParser:
+    reading_mode = reading_mode.strip().lower()
+    if mode := TAROT_READING_MODE.get(reading_mode, None):
+        return ReadingModeParser(position=mode.get('position', None), drawn_num=mode.get('num', None))
+    else:
+        raise InvalidTarotMode(reading_mode)
 
-### Example User Input
-{example_input}
-### Example Response
-{example_output}
-"""
-
+IncommingDate = Annotated[
+    datetime | str,
+    BeforeValidator(parse_datetime)
+]
+IncommingTimestamp = Annotated[
+    datetime | str | None,
+    BeforeValidator(parse_timestamp)
+]
+DisplayName = Annotated[
+    str | None,
+    BeforeValidator(lambda x: x.strip().title() if isinstance(x, str) else None)
+]
+ReadingMode = Annotated[
+    ReadingModeParser,
+    BeforeValidator(fetch_reading_mode)
+]
 
 @dataclass(slots=True)
 class TaroAction:
@@ -125,16 +193,16 @@ class TaroAction:
                 example_output=self.example.get('response', None)
             )
 
-    def action_prompt(self, **kwargs):
+    def prepare_prompt(self, **kwargs):
         """
         Returns System Message with users inputs in chat formatted message to invoke LLM. Defaults to Llama 3.1 models' chatting template.
         """
         if user_input := self.input_template.format(**kwargs) if self.input_template else None:
             yield {"role": "system", "content": self.system_prompt}
             yield {"role": "user", "content": user_input}
-
-        logger.error(f"User posted too many args for this action. User's input: {kwargs}")
-        raise InvalidModelInputs(kwargs)
+        else:
+            logger.error(f"User posted too many args for this action. User's input: {kwargs}")
+            raise InvalidModelInputs(kwargs)
 
 @dataclass(slots=True)
 class TaroProfile:
@@ -160,13 +228,6 @@ class TaroProfile:
             for key, val in temp.items()
             if isinstance(val, dict) and "prompt" in val and "example" in val
         }
-
-    def get_jawa(self, label: str):
-        """ Return an instance of the registered SandCrawler class by template label. """
-
-        if jawa := self.templates.get(label):
-            return jawa
-        raise UnavailableAction(label)
 
     @staticmethod
     def load_agent():

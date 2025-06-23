@@ -1,8 +1,6 @@
 
 import pytest
-from pydantic import ValidationError
-from src.data_models import TarotInsights, UserProfile, TarotReading
-from utils.woodpecker import InvalidTarotInsightsCalculation
+from src.schemas import TarotInsights, User
 
 def test_user_profile_incorrect_datetime_format():
     """ Test create new user with incorrect datetime format. """
@@ -35,7 +33,7 @@ def test_user_profile_success():
     assert user.birth_place == 'Australia/Sydney'
     assert user.sun_sign is not None
 
-    user._get_astrology()
+    user.get_astrology()
 
 def test_tarot_insights():
     insights = TarotInsights(
