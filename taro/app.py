@@ -12,7 +12,7 @@ from fastapi import Body, FastAPI, BackgroundTasks
 
 from src.client import setup_client
 from src.schemas import StatsRequest, TarotInsights, TarotReading, User
-from src.model_chain import CombinationAnalyst, NumerologyAnalyst
+from src.model_chain import CombinationAnalyst, NumerologyAnalyst, StoryTell
 from utils.woodpecker import DBConnectionError, StartUpCrash, setup_logger
 
 load_dotenv()
@@ -147,6 +147,40 @@ async def tarot_insight_numerology(
         return JSONResponse(content=response, status_code=200)
     except Exception as e:
         logger.error(f"❌ Error in combination insight: {e}", exc_info=True)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
+@app.post(
+    "/story_tell/",
+    response_class=JSONResponse,
+    response_model_exclude_none=True
+)
+async def tarot_story_tell(
+    inputs: StatsRequest = Body(
+        ...,
+        example={
+            'user': {
+                'id': '12345',
+                'username': 'julie.lenova',
+                'first_name': 'Julie',
+                'last_name': 'Lenova',
+                'birth_date': '21-03-1999'
+            },
+            'tarot': {
+                'timestamp': "2025-06-22T02:30:00",
+                'question': 'When will I see Pookie?',
+                'reading_mode': 'three_card',
+                'drawn_cards': ['two of cups', 'wheel of fortune', 'Death']
+            }
+        }
+    )
+):
+    try:
+        story = StoryTell()
+        response = story.run(inputs=inputs)
+        return JSONResponse(content=response, status_code=200)
+    except Exception as e:
+        logger.error(f"❌ Error while summarising prediction: {e}", exc_info=True)
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.post(

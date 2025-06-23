@@ -4,6 +4,7 @@ src/model_chain.py
 Defines the associated mini LLM agents / helpers for Taro.
 """
 
+import re
 from abc import abstractmethod, ABC
 
 from src.schemas import TarotReading
@@ -17,18 +18,16 @@ logger = setup_logger(__name__)
 taro = TaroProfile.load_agent()
 
 class SandCrawler(ABC):
-    registry: dict[str, type["SandCrawler"]] = {}
-
     def __init__(self):
         self._decode_options = OPTIONS.copy()
 
     @abstractmethod
     def feature_augment(self, **kwargs) -> dict | None:
-        """Subclasses must implement this to preprocess or validate input. Must return dict type. """
+        """ Subclasses must implement this to preprocess or validate input. Must return dict type. """
         pass
 
     def run(self, **kwargs) -> str: # type: ignore
-        """Main entrypoint to run the data pipeline and return model output."""
+        """ Main entrypoint to run the data pipeline and return model output."""
 
         if 'inputs' not in kwargs:
             raise ValueError(f'Expected `inputs` to be one of the passing keys of kwargs but received: {kwargs}')
@@ -77,7 +76,6 @@ class SandCrawler(ABC):
             raise ErrorSettingUpModelChain(task)
 
         cls.task = task
-        SandCrawler.registry[cls.__qualname__] = cls
         logger.info(f"Succesfully registered new Jawa member, {cls.__qualname__}(id: {cls.task.label if isinstance(cls.task, TaroAction) else ''})to our SandCrawler!", exc_info=True)
 
 class CombinationAnalyst(SandCrawler, task=taro.templates.get('insight_combination', None)):
@@ -86,7 +84,7 @@ class CombinationAnalyst(SandCrawler, task=taro.templates.get('insight_combinati
             if isinstance(inputs, TarotReading):
                 return {
                     'question': inputs.question,
-                    'tarot_draw_input': inputs.drawn_cards
+                    'tarot_draw_input': inputs.pos_draw
                 }
         else:
             raise ValueError
@@ -98,25 +96,69 @@ class NumerologyAnalyst(SandCrawler, task=taro.templates.get('insight_numerology
             if isinstance(inputs, TarotReading):
                 return {
                     'question': inputs.question,
-                    'tarot_draw_input': inputs.drawn_cards
+                    'tarot_draw_input': inputs.pos_draw
                 }
         else:
             raise ValueError
 
 class StoryTell(SandCrawler, task=taro.templates.get('story_tell', None)):
     def feature_augment(self, **kwargs):
-        return kwargs
+
+        if inputs := kwargs.get('inputs', None):
+            if (
+                (user := inputs.get('user')) and isinstance(user, User) and
+                (tarot := inputs.get('tarot')) and isinstance(tarot, TarotReading)
+            ):
+                comb_model = CombinationAnalyst()
+                numb_model = NumerologyAnalyst()
+
+                comb_output = comb_model.run(inputs=tarot)
+                numb_output = numb_model.run(inputs=tarot)
+
+                txt = f"""**User Info**\nFull Name: {user.first_name.lower().title()} {user.last_name.lower().title()}\nBirth Date: {user.birth_date}""" # type: ignore
+
+                comb_response = extract_combination_highlights(comb_output)
+                print('\n\nInserting combination string response:\n', comb_response)
+                self.decode_kwargs = {'num_predict': 500}
+                return {
+                    'current_timestamp': tarot.timestamp,
+                    'question': tarot.question,
+                    'tarot_draw_input': tarot.pos_draw,
+                    'insight_combination': comb_response,
+                    'insight_numerology': numb_output,
+                    'user_info': txt
+                }
+        else:
+            raise ValueError
+
+def extract_combination_highlights(text: str) -> str:
+    pattern = r"\*\*Combination Highlights\*\*(.*?)\*\*Possible insights"
+    match = re.search(pattern, text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return "No combination highlights found."
+
 
 if __name__ == "__main__":
+    from src.schemas import User
     from datetime import datetime
+
+    sample_user = User(
+        id='12345',
+        username='julie.lenova',
+        first_name='Julie',
+        last_name='Lenova',
+        birth_date='21-03-1999',
+    )
 
     sample_tarot = TarotReading(
         timestamp=str(datetime.now().date()),
         question='When will I see pookie?',
         reading_mode='three_card', # type: ignore
-        drawn_cards=['Ace of Wands', 'Wheel of fortune', 'Death (Reversed)']
+        drawn_cards=['two of cups', 'wheel of fortune', 'Death']
     )
 
-    comb = CombinationAnalyst()
-    output = comb.run(inputs=sample_tarot)
+    stry = StoryTell()
+    output = stry.run(inputs={'user': sample_user, 'tarot': sample_tarot})
     print(output)
+    # Example output
