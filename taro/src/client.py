@@ -26,8 +26,9 @@ OPTIONS = ollama._types.Options( # type: ignore
 )
 
 LLM_MODEL_ID = os.getenv('LLM_ID', "hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q5_K_S")
+# "http://localhost:11434"
 
-def setup_client(host_url: str = "http://localhost:11434"):
+def setup_client(host_url: str = "http://minis_ollama:11434"):
     """ Check and setups client connection to Ollama container from docker-compose. """
 
     client = ollama.Client(host_url)

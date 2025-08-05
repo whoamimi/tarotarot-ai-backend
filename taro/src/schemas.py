@@ -30,7 +30,6 @@ class StatsRequest(BaseModel):
 
         return model
 
-
 class UserInsights(BaseModel):
     """ Astrology & Natal House Placements of the user. """
     sun_sign: str = 'UNKNOWN'
