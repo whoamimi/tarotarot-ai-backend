@@ -211,5 +211,5 @@ notebooks/
 
 /.vscode-server
 /.windsurf-server
-taro/demo_supabase.ipynb
 .lightning_studio/.studiorc
+taro/demo_supabase.ipynb
