@@ -12,4 +12,4 @@
 # Example: streamlit run my_app.py
 # Example: gradio my_app.py
 
-# source ./ollama_root/start_ollama.sh
+docker compose -p tarohub up --build -d

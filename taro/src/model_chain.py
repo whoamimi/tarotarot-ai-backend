@@ -33,10 +33,11 @@ class SandCrawler(ABC):
             raise ValueError(f'Expected `inputs` to be one of the passing keys of kwargs but received: {kwargs}')
 
         if inputs := self.feature_augment(**kwargs):
-            logger.info(f"Formating prompts before inserting to model: {inputs}")
+            # Avoid logging full user inputs to prevent PII leakage
+            logger.debug("Formatting prompts before inserting to model. Keys: %s", list(inputs.keys()))
 
             message = list(self.task.prepare_prompt(**inputs))
-            logger.info(f"Done! Getting ready to invoke LLM with:\n {message}")
+            logger.debug("Prepared messages for LLM. Count: %d", len(message))
 
             # Fetch Client and validate connection / ollana active
             client = setup_client()
@@ -49,7 +50,7 @@ class SandCrawler(ABC):
                 options=self._decode_options
             )
 
-            logger.info(f"Ollama Output Returned: {output.message['content']}")
+            logger.debug("Ollama response received. Content length: %s", len(output.message.get('content', '') or ''))
 
             return output.message.get('content', None)
 
@@ -118,7 +119,7 @@ class StoryTell(SandCrawler, task=taro.templates.get('story_tell', None)):
                 txt = f"""**User Info**\nFull Name: {user.first_name.lower().title()} {user.last_name.lower().title()}\nBirth Date: {user.birth_date}""" # type: ignore
 
                 comb_response = extract_combination_highlights(comb_output)
-                print('\n\nInserting combination string response:\n', comb_response)
+                logger.debug("Extracted combination highlights. Length: %d", len(comb_response or ""))
                 self.decode_kwargs = {'num_predict': 500}
                 return {
                     'current_timestamp': tarot.timestamp,
@@ -160,5 +161,6 @@ if __name__ == "__main__":
 
     stry = StoryTell()
     output = stry.run(inputs={'user': sample_user, 'tarot': sample_tarot})
-    print(output)
+    logger = setup_logger(__name__)
+    logger.info("StoryTell sample output length: %d", len(output or ""))
     # Example output

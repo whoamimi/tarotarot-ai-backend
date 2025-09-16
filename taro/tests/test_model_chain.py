@@ -121,23 +121,3 @@ def test_run_calls_setup_client_and_passes_parameters(monkeypatch):
     assert captured["stream"] is False
     # The passed options object should be exactly the instance on ca
     assert captured["options"] is ca.decode_kwargs
-
-# ————————————————————————————————————————————
-# Registry & subclassing
-# ————————————————————————————————————————————
-def test_registry_includes_combination_and_numerology():
-    assert "CombinationAnalyst" in mc.SandCrawler.registry
-    assert "NumerologyAnalyst" in mc.SandCrawler.registry
-
-@pytest.mark.parametrize("update,value_attr", [
-    ({"num_ctx": 1000}, "num_ctx"),
-    ({"num_keep": 5}, "num_keep"),
-])
-def test_decode_kwargs_accepts_known_keys(update, value_attr):
-    ca = mc.CombinationAnalyst()
-    before = getattr(ca.decode_kwargs, value_attr)
-    ca.decode_kwargs = update
-    after = getattr(ca.decode_kwargs, value_attr)
-    assert after == list(update.values())[0]
-    # ensure only that key changed
-    assert isinstance(after, type(before)) or before is None

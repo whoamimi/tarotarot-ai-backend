@@ -4,6 +4,8 @@ pytest
 pytest-asyncio
 httpx
 ollama
+PyYAML
+
 # python-dotenv
 supabase
 pydantic-settings

@@ -20,12 +20,13 @@ logger = setup_logger(__name__)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", None)
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", None)
+
 DEBUG_MODE = os.getenv("DEBUG_MODE", False)
 DB_USERS = "users"
 DB_SESSION = "session"
 DB_MODEL_DUMP = "raw_model_data"
 
-logger.info("Complete loading environment labels")
+logger.info("Environment labels loaded")
 
 ### Helper functions
 @asynccontextmanager
@@ -37,24 +38,24 @@ async def startup(app: FastAPI):
         if not hasattr(app.state, "agent"):
             app.state.db_client = create_client(SUPABASE_URL, SUPABASE_KEY)
             client = setup_client()
-            logger.info(f"Setting up apps state: {app.state.__dict__}\nOllama Connection Available: {client}")
+            logger.info("App state initialized; Ollama client ready: %s", bool(client))
         yield
         #if app.state:
         #    app.state.__dict__.pop("agent", None)
         #    logger.info('Removed Agents state.')
     except Exception as e:
-        logger.error(f"🚨 {type(e).__name__} during startup: {e}", exc_info=True)
+        logger.exception("Startup failure")
         raise StartUpCrash(e)
     finally:
         if app.state:
             app.state.__dict__.pop("agent", None)
-            logger.info('Removed Agents state.')
+            logger.debug('Removed Agents state.')
 
 app = FastAPI(
     title="Taro's API",
     lifespan=startup,
     description=(
-        """Taro's ML/AI dockers container to serve main all of Taro's functionality e.g. Tarot reading, data workflows and ML/AI invokes."""
+        """FastAPI Server Endpoints + Ollama to serve Tarot reading / fortune telling LLM. """
     ),
     version="1.0.0",
     license_info={
@@ -88,7 +89,8 @@ async def user_astrology(
         }
     )
 ):
-    logger.info(f'User posted: \n{user.first_name}\nInfo:\n{user.birth_date}\n{user.birth_time}\n{user.birth_place}')
+    # Redact PII; log minimal metadata
+    logger.info('User astrology requested (user_id=%s)', user.id)
     user.get_astrology()
     return JSONResponse(content=user.model_dump(), status_code=200)
 
@@ -117,8 +119,8 @@ async def tarot_insight_combination(
         comb = CombinationAnalyst()
         response = comb.run(inputs=inputs)
         return JSONResponse(content=response, status_code=200)
-    except Exception as e:
-        logger.error(f"❌ Error in combination insight: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error in combination insight")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.post(
@@ -145,8 +147,8 @@ async def tarot_insight_numerology(
         num = NumerologyAnalyst()
         response = num.run(inputs=inputs)
         return JSONResponse(content=response, status_code=200)
-    except Exception as e:
-        logger.error(f"❌ Error in combination insight: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error in numerology insight")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 
@@ -179,8 +181,8 @@ async def tarot_story_tell(
         story = StoryTell()
         response = story.run(inputs=inputs)
         return JSONResponse(content=response, status_code=200)
-    except Exception as e:
-        logger.error(f"❌ Error while summarising prediction: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error while summarising prediction")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.post(
@@ -198,7 +200,7 @@ async def tarot_insight_stats(
         }
     )
 ):
-    logger.info(f"Tarot Insights Requested:\n{inputs.reading_mode}\n")
+    logger.info("Tarot insights requested for mode=%s", inputs.reading_mode)
     insights = TarotInsights.insight(inputs.reading_mode.drawn_num, inputs.drawn_cards) # type: ignore
     return JSONResponse(content=insights.model_dump(), status_code=200)
 
@@ -207,7 +209,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "app:app",              # module:app_instance
-        host="127.0.0.1",       # only accessible locally
+        host="0.0.0.0",       # only accessible locally
         port=8005,
         reload=True,            # auto-reload on file change (dev only)
         log_level="debug",      # very verbose logs (dev only)

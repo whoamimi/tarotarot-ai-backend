@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "taro-tarot-api"
+version = "0.1.0"
+description = "FastAPI service using Ollama for Tarot insights"
+authors = [{name = "Taro"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["taro"]
+testpaths = ["taro/tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

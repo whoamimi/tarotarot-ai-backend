@@ -1,0 +1,6 @@
+line-length = 100
+select = ["E", "F", "W"]
+ignore = [
+  # Allow unused imports in __init__.py files
+  "F401",
+]

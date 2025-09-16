@@ -201,7 +201,7 @@ class TaroAction:
             yield {"role": "system", "content": self.system_prompt}
             yield {"role": "user", "content": user_input}
         else:
-            logger.error(f"User posted too many args for this action. User's input: {kwargs}")
+            logger.error("Too many args for action; keys: %s", list(kwargs.keys()))
             raise InvalidModelInputs(kwargs)
 
 @dataclass(slots=True)
@@ -244,6 +244,6 @@ class TaroProfile:
                 data = yaml.safe_load(file)
                 return TaroProfile(**data)
 
-        except Exception as e:
-            logger.error(e, exc_info=True)
+        except Exception:
+            logger.exception("Failed to load agent profile")
             raise

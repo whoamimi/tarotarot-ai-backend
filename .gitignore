@@ -205,3 +205,11 @@ __marimo__/
 .vscode/
 notebooks/
 # experimental & self note for debugging
+/.cursor-server
+/.idea/
+/.lightning_studio/.studiorc
+
+/.vscode-server
+/.windsurf-server
+taro/demo_supabase.ipynb
+.lightning_studio/.studiorc

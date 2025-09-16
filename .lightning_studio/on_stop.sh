@@ -6,3 +6,8 @@
 #
 # Example: docker down my-container
 # Example: sudo service mysql stop
+
+echo "[!] Stopping services..."
+
+docker compose -p tarohub down
+

@@ -8,6 +8,7 @@ import ollama
 from utils.woodpecker import BadOllamaSetup, setup_logger
 
 logger = setup_logger(__name__)
+
 # Initial Decoder Configurations
 OPTIONS = ollama._types.Options( # type: ignore
     # runtime options

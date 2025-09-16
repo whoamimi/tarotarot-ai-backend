@@ -1,5 +1,5 @@
 services:
-  taro_app:
+  app:
     build:
       # https://www.docker.com/blog/llm-docker-for-local-and-hugging-face-hosting/
       dockerfile_inline: |
@@ -7,36 +7,37 @@ services:
 
         RUN useradd -m -u 1000 user
         RUN chsh -s /bin/bash user
-        RUN apt-get update && apt-get install -y curl \
-            python3.11-venv \
-            ca-certificates bash && \
-            rm -rf /var/lib/apt/lists/*
 
-        RUN python3 -m venv /code/venv
-        ENV PATH="/code/venv/bin:$PATH"
+        RUN apt-get update && apt-get install -y \
+            curl \
+            gcc \
+            make \
+            build-essential \
+            ca-certificates \
+            bash \
+        && rm -rf /var/lib/apt/lists/*
+
         ENV PYTHONPATH=/code
-        RUN chown -R user:user /code /code/venv
 
-        COPY /taro/requirements.txt .
+        COPY /requirements.txt .
         RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
         COPY /taro /code
-        RUN echo "source /code/venv/bin/activate" >> /home/user/.bashrc
+        RUN chown -R user:user /code
 
         WORKDIR /code
         User user
-
-        CMD ["/bin/bash", "-c", "source /code/venv/bin/activate && uvicorn taro.app:app --host 0.0.0.0 --port 8000 --reload"]
-    container_name: taro_app
+        CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8005", "--reload"]
+    container_name: app
     depends_on:
       - ollama
     env_file:
-      - ./.env
+      - .env
     ports:
-      - 8000:8000
+      - 8005:8005
     expose:
-      - 8000
+      - 8005
     environment:
-      - PORT=8000
+      - PORT=8005
       - OLLAMA_BASE_URL=http://minis_ollama:11434
       - OLLAMA_HOST_URL=http://minis_ollama:11434
     networks:

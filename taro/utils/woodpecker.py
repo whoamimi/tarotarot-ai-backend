@@ -2,21 +2,36 @@
 utils/woodpecker.py
 """
 
+import os
 import logging
 import traceback
 from typing import Callable
 
 def setup_logger(name: str = __name__) -> logging.Logger:
-    """ sets the custom logger. """
+    """Create a module-level logger aligned with Uvicorn's handlers.
+
+    - Uses LOG_LEVEL if provided; otherwise inherits from uvicorn.error
+    - Avoids adding duplicate handlers
+    - Disables propagation to prevent double logging
+    """
     base_logger = logging.getLogger("uvicorn.error")
     logger = logging.getLogger(name)
-    logger.setLevel(base_logger.level)
 
-    if base_logger.handlers:
+    # Resolve log level
+    level_name = os.getenv("LOG_LEVEL")
+    if level_name:
+        level = getattr(logging, level_name.upper(), base_logger.level or logging.INFO)
+    else:
+        level = base_logger.level or logging.INFO
+    logger.setLevel(level)
+
+    # Attach Uvicorn's handlers once
+    if not logger.handlers and base_logger.handlers:
         for handler in base_logger.handlers:
             logger.addHandler(handler)
 
-    #logger.propagate = True  # allow upward logging
+    # Prevent duplicate emission through ancestor loggers
+    logger.propagate = False
 
     return logger
 

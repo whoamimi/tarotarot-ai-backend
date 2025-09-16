@@ -2,7 +2,25 @@
 
 Taro's development Fast API.
 
-# Overview
+# Directory Overview
+
+Top-level files:
+- `docker-compose.yml` — App + Ollama stack
+- `on_start.sh` / `on_stop.sh` — Start/stop helpers
+- `requirements.txt` — Python deps
+- `ollama_root/` — Ollama runner (`start_ollama.sh`)
+- `taro/` — App source
+
+Important subpaths under `taro/`:
+- `app.py` — FastAPI app (uvicorn entry)
+- `src/client.py` — Ollama client setup
+- `src/model_chain.py` — Model pipeline and chat calls
+- `src/schemas.py` — Pydantic models
+- `utils/` — Logger and helpers (`woodpecker.py`, `handler.py`)
+- `templates/` — Prompts and constants
+- `tests/` — Pytests
+
+# Data Processing Agents Notes
 **Broad Meta Categories**
 	•	Emotional Life: Love, Relationships, Friendships
 	•	Practical Life: Career, Finance, Health
@@ -36,16 +54,19 @@ Taro's development Fast API.
     - [ ] Tarot reading with unique id
 - [x] Clean up the decoder state
 - [x] Define and clean up the (special) Exception Cases
+
 *External Development*
 - [x] Lightning Ollama SDK
 - [x] Template this package and push to gitlab as its own build
 - [x] Setup Lightning studio with ollama SDK and serve the Lightning AI API there
 
 ### Long Term Objective
-- [ ] Retains and align readings with the users intent.
+- [ ] Tunes QA prompt to response
+- [ ] Database Handlers -- depends on the concluding database used. Currently is SUPABASE.
 
 ### Extra / Good-to-have
 - [ ] Tarot Quick Search Tool - Definitions etc. if using card's data from open source tool
+- [ ] MPC Servers
 
 # Production Checklist
 

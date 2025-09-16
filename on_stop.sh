@@ -5,5 +5,5 @@
 
 echo "[!] Stopping services..."
 
-docker-compose -p tarohub down
+docker compose -p tarohub down
 
