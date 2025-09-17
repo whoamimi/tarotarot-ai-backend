@@ -4,11 +4,11 @@ FastAPI Server Endpoints + Ollama integration to serve Tarot reading, astrology 
 
 ## Features
 
-•	Tarot reading insights (combinations, numerology, storytelling)
-•	Astrology charting (sun, moon, rising signs, houses, planets, etc.)
-•	Numerology analysis
-•	Tarot stats & spread summaries
-•	REST API with OpenAPI/Swagger (/docs) and ReDoc (/redoc)
+- Tarot reading insights (combinations, numerology, storytelling) - insights selected based on real-life tarot readers.
+- Astrology charting (sun, moon, rising signs, houses, planets, etc.)
+- Numerology analysis
+- Tarot stats & spread summaries relative to the user's life journey and current spread.
+- REST API with OpenAPI/Swagger (/docs) and ReDoc (/redoc)
 
 ## Directory Overview
 
