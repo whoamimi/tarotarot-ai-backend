@@ -207,9 +207,10 @@ async def tarot_insight_stats(
 
 if __name__ == "__main__":
     import uvicorn
+    
     uvicorn.run(
         "app:app",              # module:app_instance
-        host="0.0.0.0",       # only accessible locally
+        host="0.0.0.0",       
         port=8005,
         reload=True,            # auto-reload on file change (dev only)
         log_level="debug",      # very verbose logs (dev only)
