@@ -35,6 +35,7 @@ class SandCrawler(ABC):
                 stream=False,
                 options=self._decode_options
             )
+
             return output.message.get('content', None)
 
     @property
@@ -55,6 +56,7 @@ class SandCrawler(ABC):
 
     def __init_subclass__(cls, task: TaroAction | str | None, **kwargs):
         super().__init_subclass__(**kwargs)
+
         if isinstance(task, str) or not task:
             raise ErrorSettingUpModelChain(task)
 
