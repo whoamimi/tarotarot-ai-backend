@@ -1,6 +1,6 @@
-# Taro: Tarot & Fortune Telling LLM Backend
+# TaroTarot AI: Tarot & Fortune Reader Backend
 
-FastAPI Server Endpoints + Ollama integration to serve Tarot reading, astrology insights, numerology, and storytelling with a Large Language Model (LLM). This project handles both AI/ML workflows, Database Creation and API endpoints.
+Tarot & Fortune telling AI backend served with FastAPI with full AI + Database infrastructure containerised with docker-compose.
 
 ## Features
 
@@ -13,20 +13,21 @@ FastAPI Server Endpoints + Ollama integration to serve Tarot reading, astrology 
 ## Directory Overview
 
 Root Directory path:
-- `docker-compose.yml` — App + Ollama stack definition
-- `on_start.sh` / `on_stop.sh` — Start/stop helper scripts
-- `requirements.txt` — Python dependencies
-- `ollama_root/` — Ollama runner (`start_ollama.sh`) and mounts over ollama container volume - where all chat logs are stored.
-- `taro/` — App source code
+- `docker-compose.yml` — Full backend deployment App + Ollama stack definition.
+- `scripts` — Contains scripts for starting / stopping app.
+- `requirements.txt` — Python dependencies.
+- `ollama_root/` — Ollama server (`start_ollama.sh`) and mounts over ollama container volume to access chat logs.
+- `taro/` — App source code.
+- `tests/` — Scripts for testing.
 
-App's sub-directory paths `taro/`:
-- `app.py` — FastAPI app (uvicorn entrypoint)
-- `src/client.py` — Ollama client setup
-- `src/model_chain.py` — Model pipeline and chat calls
-- `src/schemas.py` — Pydantic models
+App's Sub-directory paths and files (`taro/`):
+- `app.py` — FastAPI app (uvicorn entrypoint).
+- `src/agent` — LLM Client Server (Ollama) and prompt chain builders.
+- `src/schemas` — REST API data models.
+- `src/db` - Google Firebase database models.
+- `src/api` - FastAPI Routes sorted by app's features, e.g. tarot, western natal charts / astrology readings.
 - `utils/` — Logger and helpers (`woodpecker.py`, `handler.py`)
-- `templates/` — Prompts and constants
-- `tests/` — Pytests
+- `config/` — Contains yaml files defining the AI agent's prompts and workspace configurations.
 
 ---
 
@@ -68,7 +69,7 @@ Example Input:
   "gender": "male"
 }
 ```
-Example Output: 
+Example Output:
 ```json
 {
   "sun_sign": "UNKNOWN",
@@ -125,7 +126,7 @@ Example Output:
 }
 ```
 3. Tarot Insight Stats: POST /insight_stats/
-Returns statistical summaries of a Tarot spread reading. 
+Returns statistical summaries of a Tarot spread reading.
 Schema:
 	•	num_cards (int)
 	•	king_count, queen_count, knight_count, page_count (court counts)
@@ -142,7 +143,7 @@ Example Input:
   ]
 }
 ```
-Example Output: 
+Example Output:
 ```json
 {
   "num_cards": 0,
@@ -161,14 +162,14 @@ Example Output:
 # AI/ML/LLM Life Cycle
 
 - The Tarot reading insights and statistcal insights are used to fine-tune Llama 3.1 every 2 months of collected datasets.
-- The cloud server supporting the LLM is Ollama and Hugging Face.  
+- The cloud server supporting the LLM is Ollama and Hugging Face.
 
 Note: The tarot reading insights were simplified for the sake of the mobile app's simplicity.
 
 # Data Processing Agents Notes
 
-- The following are labels for the data processing tasks that utilizes the same prompt chain used in this project. 
-- These tools are built as light-weight wrappers around databases like Supabase, Google BigQuery etc. to perform data cleaning / quality checks / EDA / Fine-tuning preparations. 
+- The following are labels for the data processing tasks that utilizes the same prompt chain used in this project.
+- These tools are built as light-weight wrappers around databases like Supabase, Google BigQuery etc. to perform data cleaning / quality checks / EDA / Fine-tuning preparations.
 
 
 | **Category**                 | **Description**                                                                                  | **Example Questions**                                  |

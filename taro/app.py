@@ -5,7 +5,6 @@
 import os
 from typing import Optional
 from dotenv import load_dotenv
-from supabase import create_client
 from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse
 from fastapi import Body, FastAPI, BackgroundTasks
@@ -15,25 +14,19 @@ from src.agent.agents import CombinationAnalyst, NumerologyAnalyst, StoryTell
 from utils.woodpecker import DBConnectionError, StartUpCrash, setup_logger
 from src.schemas import StatsRequest, TarotInsights, TarotReading, User
 
+from src.api.astrology import astrology_router
+
 load_dotenv()
 logger = setup_logger(__name__)
-
-DB_USERS = "users"
-DB_SESSION = "session"
-DB_MODEL_DUMP = "raw_model_data"
-
-logger.info("Environment labels loaded")
 
 ### Helper functions
 @asynccontextmanager
 async def startup(app: FastAPI):
     try:
-        if not SUPABASE_URL or not SUPABASE_KEY:
-            raise DBConnectionError
-
         if not hasattr(app.state, "agent"):
-            app.state.db_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-            client = setup_client()
+            # TODO: Add Checks for Firebase auth
+            # Checks that ollama is running
+            setup_client()
             logger.info("App state initialized; Ollama client ready: %s", bool(client))
         yield
         #if app.state:
@@ -51,7 +44,7 @@ app = FastAPI(
     title="Taro's API",
     lifespan=startup,
     description=(
-        """FastAPI Server Endpoints + Ollama to serve Tarot reading / fortune telling LLM. """
+        """ FastAPI Server Endpoints + Ollama to serve Tarot reading / fortune telling LLM. """
     ),
     version="1.0.0",
     license_info={
@@ -60,35 +53,11 @@ app = FastAPI(
     }
 )
 
+app.include_route(astrology_router)
+
 @app.get('/')
 def root():
     return JSONResponse(content=f"Taro Active. Debug mode: {DEBUG_MODE}", status_code=200)
-
-@app.post(
-    '/user_astrology/',
-    response_class=JSONResponse,
-    response_model_exclude_none=True,
-    response_model=User,  # if you want automatic output validation
-)
-async def user_astrology(
-    user: User = Body(
-        ...,
-        example={
-            "id": "12345",
-            "username": "whoamimi",
-            "first_name": "john",
-            "last_name": "snow",
-            "birth_date": "20-02-1994",
-            "birth_time": "03:15",
-            "birth_place": "Australia/Sydney",
-            "gender": "male"
-        }
-    )
-):
-    # Redact PII; log minimal metadata
-    logger.info('User astrology requested (user_id=%s)', user.id)
-    user.get_astrology()
-    return JSONResponse(content=user.model_dump(), status_code=200)
 
 @app.post(
     '/insight_combination/',
