@@ -1,83 +1,16 @@
 """
-src/model_chain.py
+src/agent/agents.py
 
-Defines the associated mini LLM agents / helpers for Taro.
+Contains the Helper Agent for the Tarot Reading Agent.
 """
 
-import re
-from abc import abstractmethod, ABC
+from .base import SandCrawler
 
 from src.schemas import TarotReading
-from src.client import setup_client, LLM_MODEL_ID, OPTIONS
-
 from utils.handler import TaroAction, TaroProfile
-from utils.woodpecker import ErrorSettingUpModelChain, setup_logger
-
-logger = setup_logger(__name__)
+from utils.woodpecker import ErrorSettingUpModelChain
 
 taro = TaroProfile.load_agent()
-
-class SandCrawler(ABC):
-    def __init__(self):
-        self._decode_options = OPTIONS.copy()
-
-    @abstractmethod
-    def feature_augment(self, **kwargs) -> dict | None:
-        """ Subclasses must implement this to preprocess or validate input. Must return dict type. """
-        pass
-
-    def run(self, **kwargs) -> str: # type: ignore
-        """ Main entrypoint to run the data pipeline and return model output."""
-
-        if 'inputs' not in kwargs:
-            raise ValueError(f'Expected `inputs` to be one of the passing keys of kwargs but received: {kwargs}')
-
-        if inputs := self.feature_augment(**kwargs):
-            # Avoid logging full user inputs to prevent PII leakage
-            logger.debug("Formatting prompts before inserting to model. Keys: %s", list(inputs.keys()))
-
-            message = list(self.task.prepare_prompt(**inputs))
-            logger.debug("Prepared messages for LLM. Count: %d", len(message))
-
-            # Fetch Client and validate connection / ollana active
-            client = setup_client()
-
-            # Client output
-            output = client.chat(
-                model=LLM_MODEL_ID,
-                messages=message,
-                stream=False,
-                options=self._decode_options
-            )
-
-            logger.debug("Ollama response received. Content length: %s", len(output.message.get('content', '') or ''))
-
-            return output.message.get('content', None)
-
-    @property
-    def decode_kwargs(self):
-        """ Returns the decoder kwargs in LLM. """
-        return self._decode_options
-
-    @decode_kwargs.setter
-    def decode_kwargs(self, kwargs: dict):
-        """Update the decoder kwargs in the class instance."""
-        if isinstance(kwargs, dict):
-            for key, val in kwargs.items():
-                if not hasattr(self._decode_options, key):
-                    raise KeyError(f"Unknown decode option: {key!r}")
-                setattr(self._decode_options, key, val)
-            logger.info(f"Updated the decoder kwargs for current session: {self._decode_options}")
-        else:
-            raise TypeError("decode_kwargs must be set with a dictionary.")
-
-    def __init_subclass__(cls, task: TaroAction | str | None, **kwargs):
-        super().__init_subclass__(**kwargs)
-        if isinstance(task, str) or not task:
-            raise ErrorSettingUpModelChain(task)
-
-        cls.task = task
-        logger.info(f"Succesfully registered new Jawa member, {cls.__qualname__}(id: {cls.task.label if isinstance(cls.task, TaroAction) else ''})to our SandCrawler!", exc_info=True)
 
 class CombinationAnalyst(SandCrawler, task=taro.templates.get('insight_combination', None)):
     def feature_augment(self, **kwargs):
@@ -138,7 +71,6 @@ def extract_combination_highlights(text: str) -> str:
     if match:
         return match.group(1).strip()
     return "No combination highlights found."
-
 
 if __name__ == "__main__":
     from src.schemas import User

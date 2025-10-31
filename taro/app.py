@@ -10,18 +10,14 @@ from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse
 from fastapi import Body, FastAPI, BackgroundTasks
 
-from src.client import setup_client
-from src.schemas import StatsRequest, TarotInsights, TarotReading, User
-from src.model_chain import CombinationAnalyst, NumerologyAnalyst, StoryTell
+from src.agent.client import setup_client
+from src.agent.agents import CombinationAnalyst, NumerologyAnalyst, StoryTell
 from utils.woodpecker import DBConnectionError, StartUpCrash, setup_logger
+from src.schemas import StatsRequest, TarotInsights, TarotReading, User
 
 load_dotenv()
 logger = setup_logger(__name__)
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", None)
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", None)
-
-DEBUG_MODE = os.getenv("DEBUG_MODE", False)
 DB_USERS = "users"
 DB_SESSION = "session"
 DB_MODEL_DUMP = "raw_model_data"
@@ -207,10 +203,10 @@ async def tarot_insight_stats(
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "app:app",              # module:app_instance
-        host="0.0.0.0",       
+        host="0.0.0.0",
         port=8005,
         reload=True,            # auto-reload on file change (dev only)
         log_level="debug",      # very verbose logs (dev only)

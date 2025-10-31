@@ -1,5 +1,7 @@
 """
 utils/woodpecker.py
+
+Contains Logger helpers and utils.
 """
 
 import os
@@ -13,8 +15,11 @@ def setup_logger(name: str = __name__) -> logging.Logger:
     - Uses LOG_LEVEL if provided; otherwise inherits from uvicorn.error
     - Avoids adding duplicate handlers
     - Disables propagation to prevent double logging
+
+    TODO: Fix this logger setup.
     """
-    base_logger = logging.getLogger("uvicorn.error")
+
+    base_logger = logging.getLogger("uvicorn")
     logger = logging.getLogger(name)
 
     # Resolve log level

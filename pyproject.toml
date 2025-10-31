@@ -6,12 +6,12 @@ build-backend = "setuptools.build_meta"
 name = "taro-tarot-api"
 version = "0.1.0"
 description = "FastAPI service using Ollama for Tarot insights"
-authors = [{name = "Taro"}]
+authors = [{name = "Mimi Phan"}]
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
 
 [tool.pytest.ini_options]
 pythonpath = ["taro"]
-testpaths = ["taro/tests"]
+testpaths = ["tests"]
 filterwarnings = ["ignore::DeprecationWarning"]

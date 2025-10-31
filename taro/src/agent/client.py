@@ -36,4 +36,5 @@ def setup_client(host_url: str = "http://minis_ollama:11434"):
     N = len(client.list().models)
     if N > 0 and LLM_MODEL_ID in tuple(m.model for m in client.list().models):
         return client
+
     raise BadOllamaSetup
